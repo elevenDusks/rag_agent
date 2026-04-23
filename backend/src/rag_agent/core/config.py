@@ -5,6 +5,8 @@
 import os
 from typing import ClassVar
 from pathlib import Path
+
+import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -50,14 +52,35 @@ class Settings(BaseSettings):
     REDIS_PASSWORD:str = "REDIS_PASSWORD"
     REDIS_DB:int= "REDIS_DB"
 
-    # 记忆配置
+    # Memory配置
     # Redis Key前缀
     CHAT_MEMORY_PREFIX:str = "CHAT_MEMORY_PREFIX"
     # 最大保留5轮对话
     CHAT_MEMORY_MAX_ROUNDS:int = "CHAT_MEMORY_MAX_ROUNDS"
     # 24小时过期
     CHAT_MEMORY_EXPIRE_SECONDS:int = "CHAT_MEMORY_EXPIRE_SECONDS"
-    
+
+    # MYSQL配置
+    MYSQL_URL:str = "MYSQL_URL"
+    MYSQL_POOL_SIZE:int = "MYSQL_POOL_SIZE"
+    MYSQL_MAX_OVERFLOW:int = "MYSQL_MAX_OVERFLOW"
+
+    # JWT配置
+    JWT_SECRET_KEY: str = "JWT_SECRET_KEY"
+    JWT_ALGORITHM: str = "JWT_ALGORITHM"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = "ACCESS_TOKEN_EXPIRE_MINUTES"
+    REFRESH_TOKEN_EXPIRE_DAYS: int = "REFRESH_TOKEN_EXPIRE_DAYS"
+
+    # OAuth2配置
+    GOOGLE_CLIENT_ID: Optional[str] = "GOOGLE_CLIENT_ID"
+    GOOGLE_CLIENT_SECRET: Optional[str] = "GOOGLE_CLIENT_SECRET"
+    GITHUB_CLIENT_ID: Optional[str] = "GITHUB_CLIENT_ID"
+    GITHUB_CLIENT_SECRET: Optional[str] = "GITHUB_CLIENT_SECRET"
+
+    # 密码哈希配置
+    PASSWORD_CONTEXT_SCHEMES: List[str] = ["argon2"]
+
+
     # 日志配置
     LOG_LEVEL: str = "LOG_LEVEL"  # 日志级别
 
@@ -65,6 +88,7 @@ class Settings(BaseSettings):
         env_file=ENV_PATH,  # 环境变量文件路径
         case_sensitive=True,  # 环境变量大小写敏感
     )
+
 
 # 创建配置实例
 settings = Settings()

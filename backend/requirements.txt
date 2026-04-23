@@ -12,3 +12,10 @@ rank_bm25
 sentence_transformers
 redis
 python-dotenv
+sqlalchemy[asyncio]
+aiomysql
+fastapi
+python-jose[cryptography]
+passlib
+mysql-connector-python
+httpx-oauth
