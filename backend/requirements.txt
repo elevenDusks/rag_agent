@@ -1,0 +1,14 @@
+fastapi
+pydantic
+chromadb
+python-multipart
+langchain
+langchain-openai
+langchain_community
+langchain-chroma
+jq
+unstructured[md]
+rank_bm25
+sentence_transformers
+redis
+python-dotenv
