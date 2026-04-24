@@ -1,0 +1,28 @@
+# 忽略模型文件夹
+backend/models/
+
+# 忽略 IDE 配置
+.idea/
+
+# 忽略日志文件
+*.log
+app.log
+backend/app.log
+backend/src/app.log
+backend/debug*.log
+
+# 忽略向量数据库（运行时生成）
+backend/storage/
+
+# 忽略环境配置
+.env
+
+# 通用忽略
+*.safetensors
+*.bin
+*.pth
+*.ckpt
+__pycache__/
+venv/
+*.pyc
+node_modules/
