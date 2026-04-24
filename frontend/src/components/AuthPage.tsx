@@ -173,18 +173,12 @@ export function AuthPage({ onLoginSuccess }: AuthPageProps) {
           <div className="auth-header">
             <div className="logo-container">
               <svg className="logo-icon" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect width="48" height="48" rx="12" fill="url(#logo-gradient)" />
-                <path d="M14 18h20v4H14v-4zm0 8h16v4H14v-4zm0 8h12v4H14v-4z" fill="white" />
-                <defs>
-                  <linearGradient id="logo-gradient" x1="0" y1="0" x2="48" y2="48">
-                    <stop stopColor="#6366f1" />
-                    <stop offset="1" stopColor="#8b5cf6" />
-                  </linearGradient>
-                </defs>
+                <rect width="48" height="48" rx="8" fill="#E2231A" />
+                <path d="M24 10c-7.7 0-14 6.3-14 14s6.3 14 14 14 14-6.3 14-14-6.3-14-14-14zm0 24c-5.5 0-10-4.5-10-10s4.5-10 10-10 10 4.5 10 10-4.5 10-10 10zm-2-14h4v8h-4v-8zm0-4h4v3h-4v-3z" fill="white" />
               </svg>
             </div>
-            <h1 className="auth-title">RAG 智能助手</h1>
-            <p className="auth-subtitle">登录以开始智能问答之旅</p>
+            <h1 className="auth-title">京东智能客服</h1>
+            <p className="auth-subtitle">登录以开始购物咨询</p>
           </div>
 
           <Tabs

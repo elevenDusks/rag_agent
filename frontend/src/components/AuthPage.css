@@ -18,7 +18,7 @@
 .bg-gradient {
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #E2231A 0%, #FF6B5B 100%);
   opacity: 0.95;
 }
 
@@ -36,7 +36,7 @@
   width: 600px;
   height: 600px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.4) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(226, 35, 26, 0.4) 0%, transparent 70%);
   top: -200px;
   right: -100px;
   animation: float 8s ease-in-out infinite;
@@ -47,7 +47,7 @@
   width: 500px;
   height: 500px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.3) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(255, 107, 91, 0.3) 0%, transparent 70%);
   bottom: -150px;
   left: -100px;
   animation: float 10s ease-in-out infinite reverse;
@@ -129,13 +129,13 @@
   font-weight: 500 !important;
   background: var(--accent-gradient) !important;
   border: none !important;
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35) !important;
+  box-shadow: 0 4px 14px rgba(226, 35, 26, 0.35) !important;
   transition: all 0.3s ease !important;
 }
 
 .submit-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.45) !important;
+  box-shadow: 0 6px 20px rgba(226, 35, 26, 0.45) !important;
 }
 
 .submit-btn:active {

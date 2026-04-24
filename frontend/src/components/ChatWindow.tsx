@@ -102,31 +102,47 @@ export function ChatWindow({ onLogout }: ChatWindowProps) {
     setInputValue('');
     setLoading(true);
 
-    try {
-      const response = await chatApi.sendMessage({
+    let assistantMessageId = `assistant_${Date.now()}`;
+    let fullContent = '';
+
+    // 添加占位消息（显示加载动画）
+    setMessages(prev => [...prev, {
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '',  // 空内容表示正在加载
+      timestamp: new Date(),
+    }]);
+
+    // 使用流式接口
+    const cleanup = chatApi.sendMessageStream(
+      {
         message: inputValue,
         session_id: sessionId,
-      });
-
-      const assistantMessage: Message = {
-        id: `assistant_${Date.now()}`,
-        role: 'assistant',
-        content: response.message,
-        timestamp: new Date(),
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
-    } catch {
-      const errorMessage: Message = {
-        id: `error_${Date.now()}`,
-        role: 'assistant',
-        content: '抱歉，发生了错误，请稍后重试。',
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setLoading(false);
-    }
+      },
+      (token) => {
+        fullContent += token;
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === assistantMessageId
+              ? { ...msg, content: fullContent }
+              : msg
+          )
+        );
+      },
+      () => {
+        setLoading(false);
+      },
+      (error) => {
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === assistantMessageId
+              ? { ...msg, content: '抱歉，发生了错误，请稍后重试。' }
+              : msg
+          )
+        );
+        setLoading(false);
+      }
+    );
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -177,17 +193,11 @@ export function ChatWindow({ onLogout }: ChatWindowProps) {
         <div className="header-left">
           <div className="logo">
             <svg className="logo-icon" viewBox="0 0 48 48" fill="none">
-              <rect width="48" height="48" rx="12" fill="url(#header-logo-gradient)" />
-              <path d="M14 18h20v4H14v-4zm0 8h16v4H14v-4zm0 8h12v4H14v-4z" fill="white" />
-              <defs>
-                <linearGradient id="header-logo-gradient" x1="0" y1="0" x2="48" y2="48">
-                  <stop stopColor="#6366f1" />
-                  <stop offset="1" stopColor="#8b5cf6" />
-                </linearGradient>
-              </defs>
+              <rect width="48" height="48" rx="8" fill="#E2231A" />
+              <path d="M24 10c-7.7 0-14 6.3-14 14s6.3 14 14 14 14-6.3 14-14-6.3-14-14-14zm0 24c-5.5 0-10-4.5-10-10s4.5-10 10-10 10 4.5 10 10-4.5 10-10 10zm-2-14h4v8h-4v-8zm0-4h4v3h-4v-3z" fill="white" />
             </svg>
             <div className="logo-text">
-              <h1>RAG 智能助手</h1>
+              <h1>京东智能客服</h1>
               <span className="status">
                 <span className="status-dot" />
                 在线
@@ -227,17 +237,17 @@ export function ChatWindow({ onLogout }: ChatWindowProps) {
               <div className="welcome-icon">
                 <RobotOutlined />
               </div>
-              <h2>有什么可以帮助您的？</h2>
-              <p>输入您的问题，AI 助手将为您提供智能解答</p>
+              <h2>您好，我是京东智能客服</h2>
+              <p>购物、配送、售后、会员等问题，都可以问我</p>
               <div className="suggestion-chips">
-                <button className="chip" onClick={() => setInputValue('介绍一下 RAG 技术')}>
-                  介绍一下 RAG 技术
+                <button className="chip" onClick={() => setInputValue('7天无理由退货流程是什么？')}>
+                  7天无理由退货流程
                 </button>
-                <button className="chip" onClick={() => setInputValue('如何优化向量检索？')}>
-                  如何优化向量检索？
+                <button className="chip" onClick={() => setInputValue('如何申请价格保护？')}>
+                  如何申请价格保护
                 </button>
-                <button className="chip" onClick={() => setInputValue('Embedding 模型有哪些？')}>
-                  Embedding 模型有哪些？
+                <button className="chip" onClick={() => setInputValue('PLUS会员有哪些权益？')}>
+                  PLUS会员权益
                 </button>
               </div>
             </div>
@@ -249,26 +259,20 @@ export function ChatWindow({ onLogout }: ChatWindowProps) {
                 </div>
                 <div className="message-content-wrapper">
                   <div className="message-bubble">
-                    {renderContent(msg.content)}
+                    {msg.content ? (
+                      renderContent(msg.content)
+                    ) : (
+                      <div className="loading-dots">
+                        <span className="loading-dot" />
+                        <span className="loading-dot" />
+                        <span className="loading-dot" />
+                      </div>
+                    )}
                   </div>
                   {getMessageActions(msg)}
                 </div>
               </div>
             ))
-          )}
-          {loading && (
-            <div className="message assistant">
-              <div className="message-avatar">
-                <RobotOutlined />
-              </div>
-              <div className="message-content-wrapper">
-                <div className="message-bubble loading">
-                  <span className="loading-dot" />
-                  <span className="loading-dot" />
-                  <span className="loading-dot" />
-                </div>
-              </div>
-            </div>
           )}
           <div ref={messagesEndRef} />
         </div>
@@ -281,7 +285,7 @@ export function ChatWindow({ onLogout }: ChatWindowProps) {
             value={inputValue}
             onChange={e => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="输入消息... (Shift + Enter 换行)"
+            placeholder="输入购物咨询... (Shift + Enter 换行)"
             autoSize={{ minRows: 1, maxRows: 4 }}
             className="chat-input"
           />
@@ -295,7 +299,7 @@ export function ChatWindow({ onLogout }: ChatWindowProps) {
           />
         </div>
         <p className="input-hint">
-          RAG 智能助手可以犯错，请核对重要信息。
+          京东智能客服可以帮您解答购物问题，重要信息请以官方为准。
         </p>
       </footer>
     </div>

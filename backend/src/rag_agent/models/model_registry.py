@@ -3,6 +3,7 @@
 该模块定义了应用中使用的聊天模型、嵌入模型、排序模型等。
 """
 from langchain_openai import ChatOpenAI
+from functools import lru_cache
 
 from ..core.logger import logger
 from ..core.config import settings
@@ -28,17 +29,44 @@ def get_llm():
         _llm_instance = ChatOpenAI(
             model= settings.OPENAI_MODEL,
             base_url=settings.OPENAI_BASE_URL,
-            api_key=settings.OPENAI_API_KEY
+            api_key=settings.OPENAI_API_KEY,
+            streaming=True  # 启用流式输出
         )
     return _llm_instance
 llm = get_llm()
 
 class Embedding_model:
     """
-    嵌入模型
+    嵌入模型，支持缓存
     """
     def __init__(self):
         self.model = OpenAIEmbeddings(model=EMBEDDING_MODEL)
+        self._embedding_cache = {}
+        self._cache_max_size = 500
+
+    def _normalize_text(self, text: str) -> str:
+        """标准化文本用于缓存key"""
+        return text.lower().strip()
+
+    def embed_query(self, text: str):
+        """带缓存的嵌入查询"""
+        cache_key = self._normalize_text(text)
+        if cache_key in self._embedding_cache:
+            return self._embedding_cache[cache_key]
+        
+        result = self.model.embed_query(text)
+        
+        # LRU 缓存
+        if len(self._embedding_cache) >= self._cache_max_size:
+            # 移除最早的条目
+            self._embedding_cache.pop(next(iter(self._embedding_cache)))
+        self._embedding_cache[cache_key] = result
+        
+        return result
+    
+    def embed_documents(self, texts: list):
+        """文档嵌入（不缓存）"""
+        return self.model.embed_documents(texts)
 
 embedding_model = Embedding_model()
 

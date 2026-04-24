@@ -66,6 +66,76 @@ export const chatApi = {
     return response.data;
   },
 
+  sendMessageStream: (
+    request: ChatRequest,
+    onToken: (token: string) => void,
+    onDone: () => void,
+    onError: (error: string) => void
+  ): (() => void) => {
+    const controller = new AbortController();
+
+    const token = localStorage.getItem('access_token');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    fetch('/api/chat/stream', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(request),
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) {
+          throw new Error('No response body');
+        }
+
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                if (data.type === 'token') {
+                  onToken(data.token);
+                } else if (data.type === 'done') {
+                  onDone();
+                } else if (data.type === 'error') {
+                  onError(data.error);
+                }
+              } catch {
+                // Ignore parse errors
+              }
+            }
+          }
+        }
+      })
+      .catch((error) => {
+        if (error.name !== 'AbortError') {
+          onError(error.message);
+        }
+      });
+
+    return () => controller.abort();
+  },
+
   clearMemory: async (sessionId: string): Promise<{ success: boolean; message: string }> => {
     const response = await api.post<{ success: boolean; message: string }>('/chat/clear-memory', {
       session_id: sessionId,

@@ -1,6 +1,7 @@
 from langchain_core.messages import SystemMessage
 from langchain_core.output_parsers import StrOutputParser
-from typing import Optional, List
+from langchain_core.runnables import RunnableLambda
+from typing import Optional, List, AsyncGenerator
 import asyncio
 
 from .infra import load_vector_store, build_bm25_retriever, get_hybrid_retriever
@@ -91,3 +92,47 @@ class RAGPipeline:
 
     async def get_str_from_documents(self, documents):
         return "\n\n".join([doc.page_content for doc in documents])
+
+    async def retrieve_stream(
+        self, 
+        question: str, 
+        session_id: Optional[str] = None, 
+        history: Optional[List[dict]] = None
+    ) -> AsyncGenerator[str, None]:
+        """流式版本的 retrieve，返回 AsyncGenerator 用于 SSE"""
+        await self._ensure_initialized()
+        
+        logger.info("开始RAG检索（流式模式）")
+        rag_prompt = RAGPrompt()
+
+        retrievered_jd = await self._jd_hybrid_retriever.ainvoke(question)
+        logger.info(f"检索到 {len(retrievered_jd)} 个文档")
+
+        length_docs_jd = 2
+        ranked_jd_docs = await self._reranker.rerank_documents(question, retrievered_jd, length_docs_jd)
+        logger.info(f"重排序后的文档数量：{len(ranked_jd_docs)}")
+
+        str_jd_help = await self.get_str_from_documents(ranked_jd_docs)
+
+        legal_keywords = ["法律", "合法", "维权", "投诉", "欺诈", "违规", "消费者", "保障"]
+        
+        if not any(keyword in question for keyword in legal_keywords):
+            template_jd = rag_prompt.get_jd_template(history)
+            chain = template_jd | llm
+            
+            async for chunk in chain.astream({"jd_help": str_jd_help, "question": question}):
+                if chunk:
+                    # 从 AIMessageChunk 中提取纯文本 content
+                    chunk_content = chunk.content if hasattr(chunk, 'content') else str(chunk)
+                    # content 可能是字符串或列表（复杂格式），需要处理
+                    if isinstance(chunk_content, str):
+                        yield chunk_content
+                    elif isinstance(chunk_content, list):
+                        # 列表格式通常是 [{"type": "text", "text": "..."}]
+                        for item in chunk_content:
+                            if isinstance(item, dict) and item.get("type") == "text":
+                                yield item.get("text", "")
+                            elif isinstance(item, str):
+                                yield item
+        else:
+            raise NotImplementedError("法律流程待优化")
