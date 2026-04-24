@@ -5,7 +5,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .db.mysql_client import create_tables
 from .api import chat, auth
 
 # 创建 FastAPI 应用实例
@@ -26,7 +25,7 @@ app.add_middleware(
 
 # 包含路由
 app.include_router(chat.router)  # 聊天相关路由
-app.include_auth(auth.router) # 认证相关路由
+app.include_router(auth.router)
 
 @app.get("/")
 async def root():

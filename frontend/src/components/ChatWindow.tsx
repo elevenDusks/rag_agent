@@ -1,52 +1,43 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
-import { Input, Button, Spin } from 'antd';
-import { SendOutlined, UserOutlined, RobotOutlined, ShoppingOutlined } from '@ant-design/icons';
-import type { Message } from '../types/chat';
-import { chatApi } from '../services/api';
+import { useState, useRef, useEffect } from 'react';
+import { Button, Input, Dropdown, Tooltip, message } from 'antd';
+import type { MenuProps } from 'antd';
+import {
+  SendOutlined,
+  UserOutlined,
+  RobotOutlined,
+  MoonOutlined,
+  SunOutlined,
+  LogoutOutlined,
+  SettingOutlined,
+  ClearOutlined,
+  CopyOutlined,
+  CheckOutlined,
+} from '@ant-design/icons';
 import MarkdownIt from 'markdown-it';
+import { chatApi } from '../services/api';
+import type { Message } from '../types/chat';
+import './ChatWindow.css';
 
 const { TextArea } = Input;
+const md = new MarkdownIt({
+  html: false,
+  linkify: true,
+  typographer: true,
+});
 
-const md = new MarkdownIt();
+interface ChatWindowProps {
+  onLogout: () => void;
+}
 
-const markdownStyles = `
-  .markdown-body {
-    line-height: 1.7;
-    font-size: 15px;
-  }
-  .markdown-body p {
-    margin: 0 0 10px 0;
-    text-indent: 2em;
-  }
-  .markdown-body p:first-child {
-    margin-top: 0;
-  }
-  .markdown-body p:last-child {
-    margin-bottom: 0;
-  }
-  .markdown-body ul, .markdown-body ol {
-    margin: 10px 0;
-    padding-left: 2em;
-  }
-  .markdown-body li {
-    margin: 5px 0;
-  }
-  .markdown-body strong {
-    font-weight: 600;
-  }
-  .markdown-body br {
-    content: '';
-    display: block;
-    margin: 4px 0;
-  }
-`;
-
-export function ChatWindow() {
+export function ChatWindow({ onLogout }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [loading, setLoading] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [sessionId] = useState(() => `session_${Date.now()}`);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -56,18 +47,44 @@ export function ChatWindow() {
     scrollToBottom();
   }, [messages]);
 
-  const renderContent = (content: string, role: 'user' | 'assistant') => {
-    if (role === 'user') {
-      return <div style={{ textIndent: 0 }}>{content}</div>;
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
+    if (savedTheme) {
+      setTheme(savedTheme);
+      document.documentElement.setAttribute('data-theme', savedTheme);
     }
+  }, []);
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+    localStorage.setItem('theme', newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme);
+  };
+
+  const copyMessage = async (content: string, id: string) => {
+    await navigator.clipboard.writeText(content);
+    setCopiedId(id);
+    message.success('已复制');
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const clearChat = async () => {
+    try {
+      await chatApi.clearMemory(sessionId);
+      message.success('对话已清空');
+    } catch {
+      message.warning('清空本地对话成功，服务端记忆清除失败');
+    }
+    setMessages([]);
+  };
+
+  const renderContent = (content: string) => {
     return (
-      <>
-        <style>{markdownStyles}</style>
-        <div
-          className="markdown-body"
-          dangerouslySetInnerHTML={{ __html: md.render(content) }}
-        />
-      </>
+      <div
+        className="markdown-content"
+        dangerouslySetInnerHTML={{ __html: md.render(content) }}
+      />
     );
   };
 
@@ -99,7 +116,7 @@ export function ChatWindow() {
       };
 
       setMessages(prev => [...prev, assistantMessage]);
-    } catch (error) {
+    } catch {
       const errorMessage: Message = {
         id: `error_${Date.now()}`,
         role: 'assistant',
@@ -112,243 +129,175 @@ export function ChatWindow() {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
   };
 
+  const userMenuItems: MenuProps['items'] = [
+    {
+      key: 'settings',
+      icon: <SettingOutlined />,
+      label: '设置',
+    },
+    {
+      type: 'divider',
+    },
+    {
+      key: 'logout',
+      icon: <LogoutOutlined />,
+      label: '退出登录',
+      danger: true,
+      onClick: onLogout,
+    },
+  ];
+
+  const getMessageActions = (msg: Message) => {
+    if (msg.role === 'user') return null;
+    return (
+      <div className="message-actions">
+        <Tooltip title={copiedId === msg.id ? '已复制' : '复制'}>
+          <Button
+            type="text"
+            size="small"
+            icon={copiedId === msg.id ? <CheckOutlined /> : <CopyOutlined />}
+            onClick={() => copyMessage(msg.content, msg.id)}
+            className="action-btn"
+          />
+        </Tooltip>
+      </div>
+    );
+  };
+
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      padding: 24,
-    }}>
-      <div style={{
-        flex: 1,
-        maxWidth: 900,
-        width: '100%',
-        margin: '0 auto',
-        background: 'white',
-        borderRadius: 16,
-        boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-      }}>
-        <div style={{
-          padding: '20px 24px',
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          color: 'white',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-        }}>
-          <div style={{
-            width: 48,
-            height: 48,
-            borderRadius: '50%',
-            background: 'rgba(255, 255, 255, 0.2)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}>
-            <ShoppingOutlined style={{ fontSize: 24 }} />
-          </div>
-          <div>
-            <h1 style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>电商客服智能助手</h1>
-            <p style={{ margin: '4px 0 0 0', fontSize: 13, opacity: 0.9 }}>在线为您服务</p>
+    <div className="chat-window">
+      <header className="chat-header">
+        <div className="header-left">
+          <div className="logo">
+            <svg className="logo-icon" viewBox="0 0 48 48" fill="none">
+              <rect width="48" height="48" rx="12" fill="url(#header-logo-gradient)" />
+              <path d="M14 18h20v4H14v-4zm0 8h16v4H14v-4zm0 8h12v4H14v-4z" fill="white" />
+              <defs>
+                <linearGradient id="header-logo-gradient" x1="0" y1="0" x2="48" y2="48">
+                  <stop stopColor="#6366f1" />
+                  <stop offset="1" stopColor="#8b5cf6" />
+                </linearGradient>
+              </defs>
+            </svg>
+            <div className="logo-text">
+              <h1>RAG 智能助手</h1>
+              <span className="status">
+                <span className="status-dot" />
+                在线
+              </span>
+            </div>
           </div>
         </div>
+        <div className="header-right">
+          <Tooltip title={theme === 'light' ? '深色模式' : '浅色模式'}>
+            <Button
+              type="text"
+              icon={theme === 'light' ? <MoonOutlined /> : <SunOutlined />}
+              onClick={toggleTheme}
+              className="theme-toggle"
+            />
+          </Tooltip>
+          <Tooltip title="清空对话">
+            <Button
+              type="text"
+              icon={<ClearOutlined />}
+              onClick={clearChat}
+              className="clear-btn"
+            />
+          </Tooltip>
+          <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+            <Button type="text" className="user-avatar">
+              <UserOutlined />
+            </Button>
+          </Dropdown>
+        </div>
+      </header>
 
-        <div style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: 24,
-          background: 'linear-gradient(180deg, #f7f9fc 0%, #fff 100%)',
-        }}>
+      <main className="chat-main">
+        <div className="messages-container">
           {messages.length === 0 ? (
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              height: '100%',
-              color: '#666',
-            }}>
-              <div style={{
-                width: 100,
-                height: 100,
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 24,
-                boxShadow: '0 8px 24px rgba(102, 126, 234, 0.4)',
-              }}>
-                <RobotOutlined style={{ fontSize: 50, color: 'white' }} />
+            <div className="welcome-screen">
+              <div className="welcome-icon">
+                <RobotOutlined />
               </div>
-              <h2 style={{ margin: '0 0 8px 0', fontSize: 20, color: '#333' }}>欢迎咨询</h2>
-              <p style={{ margin: 0, color: '#888', fontSize: 14 }}>请输入您的问题，我会尽力为您解答</p>
+              <h2>有什么可以帮助您的？</h2>
+              <p>输入您的问题，AI 助手将为您提供智能解答</p>
+              <div className="suggestion-chips">
+                <button className="chip" onClick={() => setInputValue('介绍一下 RAG 技术')}>
+                  介绍一下 RAG 技术
+                </button>
+                <button className="chip" onClick={() => setInputValue('如何优化向量检索？')}>
+                  如何优化向量检索？
+                </button>
+                <button className="chip" onClick={() => setInputValue('Embedding 模型有哪些？')}>
+                  Embedding 模型有哪些？
+                </button>
+              </div>
             </div>
           ) : (
             messages.map(msg => (
-              <div
-                key={msg.id}
-                style={{
-                  display: 'flex',
-                  justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                  marginBottom: 20,
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    maxWidth: '75%',
-                    flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
-                    gap: 12,
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: '50%',
-                      background: msg.role === 'user' 
-                        ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                        : 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {msg.role === 'user' ? (
-                      <UserOutlined style={{ color: 'white', fontSize: 20 }} />
-                    ) : (
-                      <RobotOutlined style={{ color: 'white', fontSize: 20 }} />
-                    )}
+              <div key={msg.id} className={`message ${msg.role}`}>
+                <div className="message-avatar">
+                  {msg.role === 'user' ? <UserOutlined /> : <RobotOutlined />}
+                </div>
+                <div className="message-content-wrapper">
+                  <div className="message-bubble">
+                    {renderContent(msg.content)}
                   </div>
-                  <div
-                    style={{
-                      padding: '14px 18px',
-                      borderRadius: msg.role === 'user' 
-                        ? '18px 18px 4px 18px'
-                        : '18px 18px 18px 4px',
-                      background: msg.role === 'user' 
-                        ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                        : 'white',
-                      color: msg.role === 'user' ? 'white' : '#333',
-                      textAlign: 'left',
-                      boxShadow: msg.role === 'user' 
-                        ? '0 4px 12px rgba(102, 126, 234, 0.3)'
-                        : '0 2px 8px rgba(0, 0, 0, 0.08)',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {renderContent(msg.content, msg.role)}
-                  </div>
+                  {getMessageActions(msg)}
                 </div>
               </div>
             ))
           )}
           {loading && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              marginBottom: 20,
-              gap: 12,
-            }}>
-              <div style={{
-                width: 40,
-                height: 40,
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-                <Spin size="small" style={{ color: 'white' }} />
+            <div className="message assistant">
+              <div className="message-avatar">
+                <RobotOutlined />
               </div>
-              <div style={{
-                padding: '14px 18px',
-                borderRadius: '18px 18px 18px 4px',
-                background: 'white',
-                color: '#888',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-              }}>
-                客服正在思考中...
+              <div className="message-content-wrapper">
+                <div className="message-bubble loading">
+                  <span className="loading-dot" />
+                  <span className="loading-dot" />
+                  <span className="loading-dot" />
+                </div>
               </div>
             </div>
           )}
           <div ref={messagesEndRef} />
         </div>
+      </main>
 
-        <div style={{
-          padding: '20px 24px 24px 24px',
-          borderTop: '1px solid #f0f0f0',
-          background: 'white',
-        }}>
-          <div style={{
-            display: 'flex',
-            gap: 12,
-            alignItems: 'flex-end',
-          }}>
-            <TextArea
-              value={inputValue}
-              onChange={e => setInputValue(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="请输入您的问题，按 Enter 发送..."
-              autoSize={{ minRows: 1, maxRows: 4 }}
-              style={{
-                flex: 1,
-                borderRadius: 12,
-                border: '2px solid #e8e8e8',
-                padding: '12px 16px',
-                fontSize: 15,
-                transition: 'all 0.3s',
-              }}
-              onFocus={(e) => e.target.style.borderColor = '#667eea'}
-              onBlur={(e) => e.target.style.borderColor = '#e8e8e8'}
-            />
-            <Button
-              type="primary"
-              icon={<SendOutlined />}
-              onClick={handleSend}
-              loading={loading}
-              disabled={!inputValue.trim()}
-              size="large"
-              style={{
-                height: 'auto',
-                padding: '12px 32px',
-                borderRadius: 12,
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                border: 'none',
-                fontSize: 15,
-                fontWeight: 500,
-                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
-                transition: 'all 0.3s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.5)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
-              }}
-            >
-              发送
-            </Button>
-          </div>
+      <footer className="chat-footer">
+        <div className="input-container">
+          <TextArea
+            ref={textareaRef}
+            value={inputValue}
+            onChange={e => setInputValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="输入消息... (Shift + Enter 换行)"
+            autoSize={{ minRows: 1, maxRows: 4 }}
+            className="chat-input"
+          />
+          <Button
+            type="primary"
+            icon={<SendOutlined />}
+            onClick={handleSend}
+            loading={loading}
+            disabled={!inputValue.trim()}
+            className="send-btn"
+          />
         </div>
-      </div>
+        <p className="input-hint">
+          RAG 智能助手可以犯错，请核对重要信息。
+        </p>
+      </footer>
     </div>
   );
 }

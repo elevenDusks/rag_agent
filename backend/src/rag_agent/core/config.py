@@ -2,11 +2,9 @@
 
 该模块定义了应用的配置设置，包括 OpenAI API 配置、ChromaDB 配置、API 配置、RAG 配置和日志配置。
 """
-import os
-from typing import ClassVar
+from typing import ClassVar, Optional, List
 from pathlib import Path
 
-import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -66,10 +64,10 @@ class Settings(BaseSettings):
     MYSQL_MAX_OVERFLOW:int = "MYSQL_MAX_OVERFLOW"
 
     # JWT配置
-    JWT_SECRET_KEY: str = "JWT_SECRET_KEY"
-    JWT_ALGORITHM: str = "JWT_ALGORITHM"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = "ACCESS_TOKEN_EXPIRE_MINUTES"
-    REFRESH_TOKEN_EXPIRE_DAYS: int = "REFRESH_TOKEN_EXPIRE_DAYS"
+    JWT_SECRET_KEY: str = "your-secret-key-change-in-production"
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # OAuth2配置
     GOOGLE_CLIENT_ID: Optional[str] = "GOOGLE_CLIENT_ID"

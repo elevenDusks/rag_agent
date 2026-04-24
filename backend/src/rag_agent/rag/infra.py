@@ -18,7 +18,7 @@ async def load_vector_store(collection_name):
     )
 
     #构建向量检索器
-    vector_retriever = vector_store.as_retriever(search_kwargs={"k": 10})
+    vector_retriever = vector_store.as_retriever(search_kwargs={"k": 3})
     logger.debug(f"向量数据库加载完成：{collection_name}")
     return  vector_retriever, vector_store
 
@@ -33,7 +33,7 @@ async def build_bm25_retriever(vector_store):
 
     #构建BM25检索器
     bm25_retriever = BM25Retriever.from_documents(docs)
-    bm25_retriever.k=5
+    bm25_retriever.k=3
 
     logger.debug("BM25检索器构建完成")
     return bm25_retriever

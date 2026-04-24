@@ -31,8 +31,8 @@ class ChatMemoryService:
             message = json.dumps({"role": role, "content": content})
             # 追加对话
             redis_client.rpush(key, message)
-            # 截断：只保留最近 N 轮
-            redis_client.ltrim(key, settings.CHAT_MEMORY_MAX_ROUNDS * 2, -1)
+            # 截断：只保留最近 N 轮（保留索引 0 到 MAX*2-1）
+            redis_client.ltrim(key, 0, settings.CHAT_MEMORY_MAX_ROUNDS * 2 - 1)
             # 刷新过期时间
             redis_client.expire(key, settings.CHAT_MEMORY_EXPIRE_SECONDS)
         except Exception as e:
