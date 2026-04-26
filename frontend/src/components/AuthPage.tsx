@@ -177,7 +177,7 @@ export function AuthPage({ onLoginSuccess }: AuthPageProps) {
                 <path d="M24 10c-7.7 0-14 6.3-14 14s6.3 14 14 14 14-6.3 14-14-6.3-14-14-14zm0 24c-5.5 0-10-4.5-10-10s4.5-10 10-10 10 4.5 10 10-4.5 10-10 10zm-2-14h4v8h-4v-8zm0-4h4v3h-4v-3z" fill="white" />
               </svg>
             </div>
-            <h1 className="auth-title">京东智能客服</h1>
+            <h1 className="auth-title">智能助手</h1>
             <p className="auth-subtitle">登录以开始购物咨询</p>
           </div>
 

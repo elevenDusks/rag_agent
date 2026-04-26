@@ -440,6 +440,7 @@
   gap: 12px;
   max-width: 900px;
   margin: 0 auto;
+  align-items: center;
 }
 
 .chat-input {
@@ -484,6 +485,93 @@
   margin: 10px 0 0 0;
 }
 
+.agent-hint {
+  color: var(--accent-primary);
+}
+
+/* ========== Mode Switch ========== */
+.mode-switch {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.switch-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+}
+
+.agent-icon {
+  font-size: 18px;
+  color: var(--text-tertiary);
+  transition: all 0.2s ease;
+}
+
+.agent-icon.active {
+  color: var(--accent-primary);
+  animation: glow 2s infinite;
+}
+
+@keyframes glow {
+  0%, 100% { text-shadow: 0 0 5px rgba(226, 35, 26, 0.3); }
+  50% { text-shadow: 0 0 15px rgba(226, 35, 26, 0.6); }
+}
+
+/* ========== Agent Tool Panel ========== */
+.agent-tool-panel {
+  max-width: 900px;
+  margin: 0 auto 12px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+.tool-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.tool-collapse {
+  margin: 0 !important;
+  background: transparent !important;
+}
+
+.tool-collapse .ant-collapse-header {
+  padding: 8px 14px !important;
+  font-size: 13px;
+}
+
+.tool-detail {
+  padding: 8px 14px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  word-break: break-all;
+}
+
+.tool-detail > div {
+  margin-bottom: 6px;
+}
+
+.tool-detail > div:last-child {
+  margin-bottom: 0;
+}
+
+.tool-error {
+  color: #ff4d4f !important;
+}
+
 /* ========== Responsive ========== */
 @media (max-width: 768px) {
   .chat-header {
@@ -504,5 +592,13 @@
 
   .chat-footer {
     padding: 12px 16px 20px;
+  }
+
+  .switch-wrapper {
+    padding: 6px 8px;
+  }
+
+  .agent-tool-panel {
+    margin: 0 0 8px;
   }
 }

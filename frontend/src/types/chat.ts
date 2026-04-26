@@ -41,3 +41,42 @@ export interface RegisterRequest {
   password: string;
   full_name?: string;
 }
+
+// ============ Agent 相关类型 ============
+
+export interface ToolCall {
+  tool: string;
+  input: Record<string, unknown>;
+  output: unknown;
+  success: boolean;
+  error?: string;
+}
+
+export interface AgentRequest {
+  message: string;
+  agent_type: 'react' | 'plan_execute' | 'conversational';
+  session_id?: string;
+  tools?: string[];
+  stream?: boolean;
+  context?: string[];
+}
+
+export interface AgentResponse {
+  answer: string;
+  tool_calls: ToolCall[];
+  iterations: number;
+  agent_type: string;
+  session_id?: string;
+  intermediate_steps: string[];
+}
+
+export interface ToolSchema {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+}
+
+export interface ToolListResponse {
+  tools: ToolSchema[];
+  total: number;
+}

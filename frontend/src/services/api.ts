@@ -6,6 +6,9 @@ import type {
   RegisterRequest,
   TokenResponse,
   User,
+  AgentRequest,
+  AgentResponse,
+  ToolListResponse,
 } from '../types/chat';
 
 const api = axios.create({
@@ -140,6 +143,107 @@ export const chatApi = {
     const response = await api.post<{ success: boolean; message: string }>('/chat/clear-memory', {
       session_id: sessionId,
     });
+    return response.data;
+  },
+};
+
+export const agentApi = {
+  chat: async (request: AgentRequest): Promise<AgentResponse> => {
+    const response = await api.post<AgentResponse>('/agent/chat', request);
+    return response.data;
+  },
+
+  chatStream: (
+    request: AgentRequest,
+    callbacks: {
+      onContent: (content: string) => void;
+      onToolCalls: (toolCalls: unknown[]) => void;
+      onDone: () => void;
+      onError: (error: string) => void;
+    }
+  ): (() => void) => {
+    const controller = new AbortController();
+
+    const token = localStorage.getItem('access_token');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    fetch('/api/agent/chat/stream', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(request),
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) {
+          throw new Error('No response body');
+        }
+
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (line.startsWith('event: ') && line.includes('data: ')) {
+              const parts = line.split('data: ');
+              const event = line.slice(7, line.indexOf('\n'));
+              const dataStr = parts[1] || '';
+              try {
+                const data = JSON.parse(dataStr);
+                switch (event) {
+                  case 'content':
+                    callbacks.onContent(data.content || '');
+                    break;
+                  case 'tool_calls':
+                    callbacks.onToolCalls(data || []);
+                    break;
+                  case 'done':
+                    callbacks.onDone();
+                    break;
+                  case 'error':
+                    callbacks.onError(data.error || 'Unknown error');
+                    break;
+                }
+              } catch {
+                // Ignore parse errors
+              }
+            }
+          }
+        }
+        callbacks.onDone();
+      })
+      .catch((error) => {
+        if (error.name !== 'AbortError') {
+          callbacks.onError(error.message);
+        }
+      });
+
+    return () => controller.abort();
+  },
+
+  getTools: async (): Promise<ToolListResponse> => {
+    const response = await api.get<ToolListResponse>('/agent/tools');
+    return response.data;
+  },
+
+  health: async (): Promise<{ status: string; tools_count: number }> => {
+    const response = await api.get('/agent/health');
     return response.data;
   },
 };

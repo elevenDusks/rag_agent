@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Button, Input, Dropdown, Tooltip, message } from 'antd';
+import { Button, Input, Dropdown, Tooltip, message, Switch, Collapse, Tag } from 'antd';
 import type { MenuProps } from 'antd';
 import {
   SendOutlined,
@@ -12,10 +12,14 @@ import {
   ClearOutlined,
   CopyOutlined,
   CheckOutlined,
+  ThunderboltOutlined,
+  ToolOutlined,
+  LoadingOutlined,
 } from '@ant-design/icons';
 import MarkdownIt from 'markdown-it';
-import { chatApi } from '../services/api';
-import type { Message } from '../types/chat';
+// @ts-ignore - markdown-it 类型定义问题
+import { chatApi, agentApi } from '../services/api';
+import type { Message, ToolCall } from '../types/chat';
 import './ChatWindow.css';
 
 const { TextArea } = Input;
@@ -37,7 +41,12 @@ export function ChatWindow({ onLogout }: ChatWindowProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [sessionId] = useState(() => `session_${Date.now()}`);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Agent mode state
+  const [agentMode, setAgentMode] = useState(false);
+  const [currentToolCalls, setCurrentToolCalls] = useState<ToolCall[]>([]);
+  const [agentType] = useState<'react' | 'plan_execute' | 'conversational'>('react');
+  const [showToolPanel, setShowToolPanel] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -101,6 +110,7 @@ export function ChatWindow({ onLogout }: ChatWindowProps) {
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setLoading(true);
+    setCurrentToolCalls([]);
 
     let assistantMessageId = `assistant_${Date.now()}`;
     let fullContent = '';
@@ -109,30 +119,29 @@ export function ChatWindow({ onLogout }: ChatWindowProps) {
     setMessages(prev => [...prev, {
       id: assistantMessageId,
       role: 'assistant',
-      content: '',  // 空内容表示正在加载
+      content: '',
       timestamp: new Date(),
     }]);
 
-    // 使用流式接口
-    const cleanup = chatApi.sendMessageStream(
-      {
-        message: inputValue,
-        session_id: sessionId,
-      },
-      (token) => {
-        fullContent += token;
+    if (agentMode) {
+      // Agent 模式
+      try {
+        const response = await agentApi.chat({
+          message: inputValue,
+          session_id: sessionId,
+          agent_type: agentType,
+          stream: false,
+        });
+
         setMessages(prev =>
           prev.map(msg =>
             msg.id === assistantMessageId
-              ? { ...msg, content: fullContent }
+              ? { ...msg, content: response.answer }
               : msg
           )
         );
-      },
-      () => {
-        setLoading(false);
-      },
-      (error) => {
+        setCurrentToolCalls(response.tool_calls || []);
+      } catch (error) {
         setMessages(prev =>
           prev.map(msg =>
             msg.id === assistantMessageId
@@ -140,9 +149,41 @@ export function ChatWindow({ onLogout }: ChatWindowProps) {
               : msg
           )
         );
+      } finally {
         setLoading(false);
       }
-    );
+    } else {
+      // 普通聊天模式
+      chatApi.sendMessageStream(
+        {
+          message: inputValue,
+          session_id: sessionId,
+        },
+        (token) => {
+          fullContent += token;
+          setMessages(prev =>
+            prev.map(msg =>
+              msg.id === assistantMessageId
+                ? { ...msg, content: fullContent }
+                : msg
+            )
+          );
+        },
+        () => {
+          setLoading(false);
+        },
+        () => {
+          setMessages(prev =>
+            prev.map(msg =>
+              msg.id === assistantMessageId
+                ? { ...msg, content: '抱歉，发生了错误，请稍后重试。' }
+                : msg
+            )
+          );
+          setLoading(false);
+        }
+      );
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -193,11 +234,12 @@ export function ChatWindow({ onLogout }: ChatWindowProps) {
         <div className="header-left">
           <div className="logo">
             <svg className="logo-icon" viewBox="0 0 48 48" fill="none">
-              <rect width="48" height="48" rx="8" fill="#E2231A" />
-              <path d="M24 10c-7.7 0-14 6.3-14 14s6.3 14 14 14 14-6.3 14-14-6.3-14-14-14zm0 24c-5.5 0-10-4.5-10-10s4.5-10 10-10 10 4.5 10 10-4.5 10-10 10zm-2-14h4v8h-4v-8zm0-4h4v3h-4v-3z" fill="white" />
+              <rect width="48" height="48" rx="12" fill="#1890ff" />
+              <circle cx="24" cy="20" r="8" stroke="white" strokeWidth="3" fill="none" />
+              <path d="M24 32c-6 0-11 3-11 8v2h22v-2c0-5-5-8-11-8z" stroke="white" strokeWidth="3" fill="none" />
             </svg>
             <div className="logo-text">
-              <h1>京东智能客服</h1>
+              <h1>{agentMode ? '智能助手' : '京东客服'}</h1>
               <span className="status">
                 <span className="status-dot" />
                 在线
@@ -237,18 +279,34 @@ export function ChatWindow({ onLogout }: ChatWindowProps) {
               <div className="welcome-icon">
                 <RobotOutlined />
               </div>
-              <h2>您好，我是京东智能客服</h2>
-              <p>购物、配送、售后、会员等问题，都可以问我</p>
+              <h2>{agentMode ? '您好，我是智能助手' : '您好，我是京东客服'}</h2>
+              <p>{agentMode ? '我可以帮您回答各类问题，也可以搜索知识库或互联网获取信息' : '购物、配送、售后、会员等问题，都可以问我'}</p>
               <div className="suggestion-chips">
-                <button className="chip" onClick={() => setInputValue('7天无理由退货流程是什么？')}>
-                  7天无理由退货流程
-                </button>
-                <button className="chip" onClick={() => setInputValue('如何申请价格保护？')}>
-                  如何申请价格保护
-                </button>
-                <button className="chip" onClick={() => setInputValue('PLUS会员有哪些权益？')}>
-                  PLUS会员权益
-                </button>
+                {agentMode ? (
+                  <>
+                    <button className="chip" onClick={() => setInputValue('今天有什么新闻？')}>
+                      今天有什么新闻
+                    </button>
+                    <button className="chip" onClick={() => setInputValue('帮我计算 123 * 456')}>
+                      计算数学题
+                    </button>
+                    <button className="chip" onClick={() => setInputValue('介绍一下 RAG 技术')}>
+                      介绍 RAG 技术
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button className="chip" onClick={() => setInputValue('7天无理由退货流程是什么？')}>
+                      7天无理由退货流程
+                    </button>
+                    <button className="chip" onClick={() => setInputValue('如何申请价格保护？')}>
+                      如何申请价格保护
+                    </button>
+                    <button className="chip" onClick={() => setInputValue('PLUS会员有哪些权益？')}>
+                      PLUS会员权益
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           ) : (
@@ -279,19 +337,69 @@ export function ChatWindow({ onLogout }: ChatWindowProps) {
       </main>
 
       <footer className="chat-footer">
+        {agentMode && (
+          <div className="agent-tool-panel">
+            <div className="tool-panel-header">
+              <ToolOutlined />
+              <span>工具调用记录</span>
+              <Tag color="blue">{currentToolCalls.length} 个工具</Tag>
+              <Button
+                type="text"
+                size="small"
+                onClick={() => setShowToolPanel(!showToolPanel)}
+              >
+                {showToolPanel ? '收起' : '展开'}
+              </Button>
+            </div>
+            {showToolPanel && currentToolCalls.length > 0 && (
+              <Collapse ghost className="tool-collapse">
+                {currentToolCalls.map((tc, index) => (
+                  <Collapse.Panel
+                    key={index}
+                    header={
+                      <span>
+                        <Tag color={tc.success ? 'green' : 'red'}>
+                          {tc.success ? <CheckOutlined /> : <LoadingOutlined />}
+                        </Tag>
+                        {tc.tool}
+                      </span>
+                    }
+                  >
+                    <div className="tool-detail">
+                      <div><strong>输入:</strong> {JSON.stringify(tc.input)}</div>
+                      <div><strong>输出:</strong> {String(tc.output).slice(0, 200)}</div>
+                      {tc.error && <div className="tool-error"><strong>错误:</strong> {tc.error}</div>}
+                    </div>
+                  </Collapse.Panel>
+                ))}
+              </Collapse>
+            )}
+          </div>
+        )}
         <div className="input-container">
+          <div className="mode-switch">
+            <Tooltip title={agentMode ? '切换到普通模式' : '开启 Agent 模式（可使用工具）'}>
+              <div className="switch-wrapper">
+                <ThunderboltOutlined className={agentMode ? 'agent-icon active' : 'agent-icon'} />
+                <Switch
+                  size="small"
+                  checked={agentMode}
+                  onChange={(checked) => setAgentMode(checked)}
+                />
+              </div>
+            </Tooltip>
+          </div>
           <TextArea
-            ref={textareaRef}
             value={inputValue}
             onChange={e => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="输入购物咨询... (Shift + Enter 换行)"
+            placeholder={agentMode ? 'Agent 模式：可以调用工具...' : '输入您想咨询的问题...'}
             autoSize={{ minRows: 1, maxRows: 4 }}
             className="chat-input"
           />
           <Button
             type="primary"
-            icon={<SendOutlined />}
+            icon={agentMode ? <ThunderboltOutlined /> : <SendOutlined />}
             onClick={handleSend}
             loading={loading}
             disabled={!inputValue.trim()}
@@ -299,7 +407,15 @@ export function ChatWindow({ onLogout }: ChatWindowProps) {
           />
         </div>
         <p className="input-hint">
-          京东智能客服可以帮您解答购物问题，重要信息请以官方为准。
+          {agentMode ? (
+            <span className="agent-hint">
+              Agent 模式已开启，AI 可以调用工具获取信息 | 类型: {agentType}
+            </span>
+          ) : (
+            <span className="agent-hint">
+              京东客服可以帮您解答购物问题，开启 Agent 模式可获取更全面的信息
+            </span>
+          )}
         </p>
       </footer>
     </div>
