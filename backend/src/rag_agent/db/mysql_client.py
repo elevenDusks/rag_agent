@@ -12,8 +12,8 @@ from ..core.security import get_password_hash
 # 创建数据库引擎
 async_engine = create_async_engine(
     settings.MYSQL_URL,
-    pool_size = settings.MYSQL_POOL_SIZE,
-    max_overflow=10,
+    pool_size=settings.MYSQL_POOL_SIZE,
+    max_overflow=settings.MYSQL_MAX_OVERFLOW,
     pool_recycle=3600
 )
 

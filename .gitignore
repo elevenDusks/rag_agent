@@ -16,6 +16,7 @@ backend/storage/
 
 # 忽略环境配置
 .env
+.env.prod
 
 # 通用忽略
 *.safetensors

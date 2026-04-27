@@ -1,7 +1,4 @@
-"""密码哈希工具
-
-独立的密码加密模块，避免循环导入问题
-"""
+"""密码哈希工具"""
 from passlib.context import CryptContext
 
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")

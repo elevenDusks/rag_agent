@@ -5,6 +5,7 @@
       <sourceFolder url="file://$MODULE_DIR$/backend" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/backend/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/rag_agent/src" isTestSource="false" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv" />
       <excludeFolder url="file://$MODULE_DIR$/my-rag-agent" />
     </content>
     <orderEntry type="jdk" jdkName="venv" jdkType="Python SDK" />

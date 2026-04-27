@@ -6,7 +6,7 @@ from ..core.logger import get_logger
 logger = get_logger(__name__)
 
 
-class RAGPrompt:
+class RoAGPrmpt:
     def __init__(self):
         pass
 

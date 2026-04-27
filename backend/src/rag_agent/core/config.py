@@ -2,10 +2,16 @@
 
 该模块定义了应用的配置设置，包括 OpenAI API 配置、ChromaDB 配置、API 配置、RAG 配置和日志配置。
 """
-from typing import ClassVar, Optional, List
+import os
+from typing import ClassVar, Optional
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+# 配置 HuggingFace 镜像（解决国内访问问题）
+# 需要在导入模型之前设置
+os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
 
 
 BASE_DIR: ClassVar[Path] = Path(__file__).resolve().parent.parent.parent.parent.parent  #
@@ -64,10 +70,10 @@ class Settings(BaseSettings):
     MYSQL_MAX_OVERFLOW:int = "MYSQL_MAX_OVERFLOW"
 
     # JWT配置
-    JWT_SECRET_KEY: str = "your-secret-key-change-in-production"
-    JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    JWT_SECRET_KEY: str = "JWT_SECRET_KEY"
+    JWT_ALGORITHM: str = "JWT_ALGORITHM"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = "ACCESS_TOKEN_EXPIRE_MINUTES"
+    REFRESH_TOKEN_EXPIRE_DAYS: int = "REFRESH_TOKEN_EXPIRE_DAYS"
 
     # OAuth2配置
     GOOGLE_CLIENT_ID: Optional[str] = "GOOGLE_CLIENT_ID"
@@ -76,7 +82,7 @@ class Settings(BaseSettings):
     GITHUB_CLIENT_SECRET: Optional[str] = "GITHUB_CLIENT_SECRET"
 
     # 密码哈希配置
-    PASSWORD_CONTEXT_SCHEMES: List[str] = ["argon2"]
+    PASSWORD_CONTEXT_SCHEMES: str = "PASSWORD_CONTEXT_SCHEMES"
 
 
     # 日志配置

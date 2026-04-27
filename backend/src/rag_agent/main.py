@@ -2,16 +2,64 @@
 
 该模块是应用的主入口，负责初始化 FastAPI 应用、配置 CORS、包含路由以及定义根路径和健康检查端点。
 """
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .api import chat, auth
+from .api import chat, auth, agent, metrics
+from .middleware.metrics import metrics_collector
+from .db.mysql_client import create_tables, async_engine, AsyncSessionLocal
+from .models.user import User
+from .models.metrics import RAGQueryLog, UserFeedback, DailyMetrics  # noqa: F401 - 注册模型
+from .core.security import get_password_hash
+from sqlalchemy import select
+from .core.logger import logger
+
+
+@asynccontextmanager
+async def app_lifespan(app: FastAPI):
+    # 创建数据库表
+    await create_tables()
+    logger.info("数据库表初始化完成")
+
+    # 创建默认管理员账号
+    async with AsyncSessionLocal() as session:
+        stmt = select(User).where(User.username == "admin")
+        result = await session.execute(stmt)
+        existing_admin = result.scalar_one_or_none()
+        if not existing_admin:
+            admin = User(
+                username="admin",
+                email="admin@example.com",
+                hashed_password=get_password_hash("admin123"),
+                full_name="Administrator",
+                is_superuser=True,
+                is_active=True,
+            )
+            session.add(admin)
+            await session.commit()
+            logger.info("默认管理员账号已创建: admin / admin123")
+        else:
+            logger.info("管理员账号已存在")
+
+    # 启动指标采集器
+    await metrics_collector.start()
+
+    yield
+
+    # 停止指标采集器
+    await metrics_collector.stop()
+
+    # 关闭数据库连接
+    await async_engine.dispose()
+    logger.info("数据库连接已关闭")
 
 # 创建 FastAPI 应用实例
 app = FastAPI(
     title="My RAG Agent API",  # API 标题
     description="A RAG (Retrieval-Augmented Generation) agent API",  # API 描述
-    version="1.0.0"  # API 版本
+    version="1.0.0",  # API 版本
+    lifespan=app_lifespan  # 生命周期管理
 )
 
 # 配置 CORS（跨域资源共享）
@@ -26,6 +74,8 @@ app.add_middleware(
 # 包含路由
 app.include_router(chat.router)  # 聊天相关路由
 app.include_router(auth.router)
+app.include_router(agent.router)  # Agent 相关路由
+app.include_router(metrics.router)  # 指标相关路由
 
 @app.get("/")
 async def root():
@@ -44,14 +94,10 @@ async def health_check():
     return {"status": "healthy"}
 
 if __name__ == "__main__":
-    """应用入口点
-    
-    当直接运行该文件时，启动 uvicorn 服务器。
-    """
     import uvicorn
     uvicorn.run(
-        "src.rag_agent.main:app",  # 应用路径
-        host="0.0.0.0",  # 主机地址
-        port=8000,  # 端口
-        reload=True  # 开发模式下自动重载
+        "backend.src.rag_agent.main:app",
+        host="0.0.0.0",
+        port=5001,
+        reload=True
     )
